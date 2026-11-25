@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Painel Lamaveo</title>
+<style>body{margin:0;font:15px Georgia,serif;background:#F4EFE8;color:#1B2847}header{background:#1B2847;color:#F4EFE8;padding:12px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header b{font-size:22px;margin-right:auto}main{padding:16px 20px}button,input,select{font:14px Georgia,serif;padding:6px 10px;border-radius:6px;border:1px solid #B9C3D3}
+button{background:#F29774;color:#1B2847;border:0;cursor:pointer;font-weight:bold}button.t{background:transparent;color:#F4EFE8;border:1px solid #F4EFE8}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;background:#fff}th,td{padding:7px 8px;border-bottom:1px solid #E9E2D8;text-align:left;vertical-align:top}th{background:#E9E2D8}
+.ok{background:#fff3c4}#lg{max-width:340px;margin:60px auto;background:#fff;padding:24px;border-radius:12px}input{width:100%;box-sizing:border-box;margin:6px 0}
+td input[type=checkbox]{width:auto}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;max-width:760px}</style></head>
+<body>
+<header><b>Lamaveo · Painel</b><span id="nv" hidden><button class="t" data-tab="pedidos">Pedidos</button><button class="t" data-tab="livros">Livros e estoque</button><button class="t" data-tab="repasses">Repasses</button><button class="t" data-tab="novo">Novo livro</button></span></header>
+<div id="lg"><h2>Acesso da editora</h2><input id="k" type="password" placeholder="Chave de administrador"><button id="en">Entrar</button></div>
+<main id="app" hidden></main>
+<script>
+var API_URL="";  /* cole a URL /exec do Apps Script */
+var REM=["Lamaveo Editora e Livraria","[Rua, número, bairro]","[Cidade/UF] · CEP [00000-000]","editora@lamaveo.com.br"];
+var D,K="",ST=["aguardando","pago","em produção","enviado","entregue","cancelado"];
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]})}
+function api(d){d.chave=K;return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(r){return r.json()})}
+function sel(k,v,o){return '<select data-k="'+k+'">'+o.map(function(x){return '<option'+(x===v?' selected':'')+'>'+x+'</option>'}).join("")+'</select>'}
+function show(n){var h="";
+ if(n==="pedidos")h='<h2>Pedidos</h2><div class="w"><table><tr><th>Pedido</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Status</th><th>Rastreio</th><th></th></tr>'+D.pedidos.slice().reverse().map(function(p){
+  var it="";try{it=JSON.parse(p.itens).map(function(i){return i.q+"× "+i.t}).join("; ")}catch(e){}
+  return '<tr><td>'+esc(p.id)+'<br><small>'+esc(String(p.data).slice(0,10))+'</small></td><td>'+esc(p.nome)+'<br><small>'+esc(p.email)+'<br>'+esc(p.endereco)+' '+esc(p.cep)+'</small></td><td>'+esc(it)+'</td><td>R$ '+Number(p.total).toFixed(2).replace(".",",")+'<br><small>'+esc(p.servico||"")+'</small></td><td>'+sel("status",p.status,ST)+'</td><td><input data-k="rastreio" value="'+esc(p.rastreio)+'"></td><td><button data-save="Pedidos|'+esc(p.id)+'">Salvar</button> <button data-et="'+esc(p.id)+'">Etiqueta</button></td></tr>'}).join("")+'</table></div>';
+ if(n==="livros")h='<h2>Livros e estoque</h2><div class="w"><table><tr><th>ID</th><th>Título</th><th>Formato</th><th>Estoque</th><th>Ativo</th><th>Status</th><th></th></tr>'+D.livros.map(function(l){
+  return '<tr><td>'+esc(l.id)+'</td><td>'+esc(l.titulo)+'<br><small>'+esc(l.autor)+' · ISBN '+esc(l.isbn)+'</small></td><td>'+esc(l.formato)+'</td><td>'+(l.formato==="fisico"?'<input data-k="estoque" type="number" min="0" value="'+esc(l.estoque)+'" style="width:80px">':"–")+'</td><td><input data-k="ativo" type="checkbox"'+(l.ativo===true?" checked":"")+'></td><td>'+sel("status",l.status,["pendente","aprovado","recusado"])+'</td><td><button data-save="Livros|'+esc(l.id)+'">Salvar</button></td></tr>'}).join("")+'</table></div>';
+ if(n==="repasses"){var hoje=new Date().toISOString().slice(0,10);h='<h2>Repasses aos autores</h2><p>Em amarelo: já liberados (passaram 10 dias) e ainda não pagos.</p><div class="w"><table><tr><th>Autor</th><th>Livro</th><th>Pedido</th><th>Libera em</th><th>Bruto</th><th>Líquido (88%)</th><th>Pago</th><th></th></tr>'+D.repasses.map(function(r){
+  var li=String(r.libera_em).slice(0,10),pr=li<=hoje&&r.pago!==true;
+  return '<tr'+(pr?' class="ok"':'')+'><td>'+esc(r.autor_email)+'</td><td>'+esc(r.livro)+'</td><td>'+esc(r.pedido)+'</td><td>'+li+'</td><td>'+Number(r.bruto).toFixed(2)+'</td><td><b>'+Number(r.liquido_88pct).toFixed(2)+'</b></td><td><input data-k="pago" type="checkbox"'+(r.pago===true?" checked":"")+'></td><td><button data-save="Repasses|'+esc(r.id)+'">Salvar</button></td></tr>'}).join("")+'</table></div>'}
+ if(n==="novo")h='<h2>Novo livro</h2><div class="g" id="nf"><input data-n="titulo" placeholder="Título"><input data-n="autor" placeholder="Autor"><input data-n="isbn" placeholder="ISBN"><select data-n="categoria"><option>infantil</option><option>infantojuvenil</option><option>jovem</option><option>saude</option><option>educacao</option><option>empreend</option></select><select data-n="formato"><option>fisico</option><option>ebook</option></select><input data-n="preco" placeholder="Preço (39.90)"><input data-n="estoque" placeholder="Estoque (físico)"><input data-n="capa_url" placeholder="URL da capa"><input data-n="arquivo_id" placeholder="ID do arquivo no Drive (ebook)"><input data-n="autor_email" placeholder="E-mail do autor"></div><p><button id="sn">Cadastrar livro</button></p>';
+ document.getElementById("app").innerHTML=h}
+document.getElementById("en").onclick=function(){K=document.getElementById("k").value;api({action:"admin_dados"}).then(function(r){if(r.erro){alert(r.erro);return}D=r;document.getElementById("lg").hidden=true;document.getElementById("app").hidden=false;document.getElementById("nv").hidden=false;show("pedidos")})};
+function recarrega(t){api({action:"admin_dados"}).then(function(r){D=r;show(t)})}
+document.addEventListener("click",function(e){var b=e.target;
+ if(b.dataset.tab)show(b.dataset.tab);
+ if(b.dataset.save){var p=b.dataset.save.split("|"),c={};b.closest("tr").querySelectorAll("[data-k]").forEach(function(i){c[i.dataset.k]=i.type==="checkbox"?i.checked:i.value});if(c.estoque!==undefined&&c.estoque!=="")c.estoque=Number(c.estoque);
+  api({action:"admin_set",aba:p[0],id:p[1],campos:c}).then(function(r){alert(r.ok?"Salvo":r.erro)})}
+ if(b.dataset.et)etiqueta(b.dataset.et);
+ if(b.id==="sn"){var c={};document.querySelectorAll("[data-n]").forEach(function(i){c[i.dataset.n]=i.value});c.preco=Number(String(c.preco).replace(",","."));if(c.estoque!=="")c.estoque=Number(c.estoque);
+  api({action:"admin_novo",campos:c}).then(function(r){alert(r.ok?"Cadastrado":r.erro);if(r.ok)recarrega("livros")})}});
+function etiqueta(id){var p=D.pedidos.filter(function(x){return x.id===id})[0],w=window.open("","_blank");
+ w.document.write('<title>Etiqueta '+esc(id)+'</title><style>@page{size:100mm 150mm;margin:0}body{font:13px Arial;margin:0;padding:6mm;width:88mm}h3{margin:8px 0 2px;font-size:11px;text-transform:uppercase;border-bottom:1px solid #000}p{margin:2px 0}.d{font-size:18px;font-weight:bold}</style><h3>Remetente</h3><p>'+REM.map(esc).join("<br>")+'</p><h3>Destinatário</h3><p class="d">'+esc(p.nome)+'</p><p class="d">'+esc(p.endereco)+'</p><p class="d">CEP '+esc(p.cep)+'</p><h3>Pedido</h3><p>'+esc(p.id)+' · '+esc(p.servico||"")+'</p><p>Conteúdo: livro(s)</p><script>setTimeout(function(){print()},300)<\/script>');w.document.close()}
+</script></body></html>
