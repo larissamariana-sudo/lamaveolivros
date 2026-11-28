@@ -251,13 +251,13 @@ function render(f){
  var list=BOOKS.filter(function(b){return f==="all"||b.c===f});
  grid.innerHTML=list.map(function(b,i){
   var cor=["#1B2847","#2c3d6b","#a85e44","#3a4a74"][i%4];
-  return '<article class="book"><div class="cover" style="background:'+cor+'">'+(b.img?'<img src="'+esc(b.img)+'" alt="">':'')+'<b>'+esc(b.t)+'</b><small>'+esc(b.s)+'<br>Lara Veloso</small></div>'+
+  return '<article class="book"><div class="cover" style="background:'+cor+'">'+(b.img?'<img src="'+esc(b.img)+'" alt="" onerror="this.remove()">':'')+'</div>'+
   '<h3>'+esc(b.t)+'</h3><p class="meta">'+esc(b.s)+' · '+esc(b.f)+'</p><span class="tag">'+NOMES[b.c]+'</span>'+
   '<div class="price">R$ '+b.p+'</div><div class="row"><button class="btn" data-add="'+esc(String(b.id))+'"'+(b.est===0?' disabled':'')+'>'+(b.est===0?"Esgotado":"Comprar")+'</button></div></article>'}).join("");
  document.getElementById("vazio").hidden=list.length>0;
 }
 render("all");
-if(API_URL){fetch(API_URL+"?action=livros").then(function(r){return r.json()}).then(function(l){BOOKS=l.map(function(x){return{id:x.id,t:x.titulo,s:x.autor,c:x.categoria,p:Number(x.preco).toFixed(2).replace(".",","),f:x.formato==="fisico"?"Livro impresso":"Ebook",img:x.img,est:x.estoque}});render("all")}).catch(function(){})}
+if(API_URL){fetch(API_URL+"?action=livros").then(function(r){return r.json()}).then(function(l){BOOKS=l.map(function(x){return{id:x.id,t:x.titulo,s:x.autor,c:x.categoria,p:Number(x.preco).toFixed(2).replace(".",","),f:x.formato==="fisico"?"Livro impresso":"Ebook",img:String(x.img||"").replace(/^https?:\/\/[^\/]+\/capas\//,"capas/"),est:x.estoque
 document.getElementById("tabs").addEventListener("click",function(e){
  var t=e.target.closest(".tab");if(!t)return;
  document.querySelectorAll(".tab").forEach(function(x){x.setAttribute("aria-pressed",x===t)});
