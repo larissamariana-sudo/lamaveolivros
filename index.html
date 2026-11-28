@@ -83,6 +83,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .cta .m{width:100%;max-width:230px;margin:auto;filter:drop-shadow(0 10px 12px rgba(0,0,0,.25));animation:bob 3.6s ease-in-out infinite}
 @media (max-width:760px){.cta .wrap{grid-template-columns:1fr 1fr}.cta .wrap>div{grid-column:1/-1;order:-1;padding-bottom:0}.bubble{margin-bottom:30px}}
 textarea{width:100%;padding:10px;border-radius:8px;border:2px solid var(--mist);font:16px Georgia,serif}input[type=checkbox]{width:auto}.cover img~b,.cover img~small{display:none}.book .btn[disabled]{opacity:.5;cursor:not-allowed}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);background:#1B2847;color:#F4EFE8;padding:12px 18px;border-radius:12px;font-size:15px;max-width:90%;opacity:0;pointer-events:none;transition:.25s;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.3)}#toast.on{opacity:1;transform:translate(-50%,0)}
+.ci{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--soft);flex-wrap:wrap}.ct small{display:block;opacity:.7}.cc{display:flex;align-items:center;gap:6px}
+.qb{width:32px;height:32px;border-radius:8px;border:1px solid var(--mist);background:#fff;color:#1B2847;font:bold 18px Georgia,serif;cursor:pointer;padding:0}.qn{min-width:22px;text-align:center;font-weight:bold}
+.rm{background:none;border:0;color:#B4432B;text-decoration:underline;font:14px Georgia,serif;cursor:pointer;padding:4px}.tot{padding-top:10px;list-style:none}#pagar:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -203,7 +207,8 @@ textarea{width:100%;padding:10px;border-radius:8px;border:2px solid var(--mist);
 </footer>
 
 <dialog id="checkout">
- <h2 style="font-size:24px">Finalizar compra</h2><ul id="resumo" style="padding-left:18px"></ul>
+ <h2 style="font-size:24px">Finalizar compra</h2><ul id="resumo" style="list-style:none;padding:0;margin:8px 0"></ul>
+ <p style="margin:0 0 6px"><button class="btn ghost" id="limpar" type="button">Esvaziar carrinho</button></p>
  <label for="cn">Nome completo</label><input id="cn" autocomplete="name">
  <label for="ce">E-mail</label><input id="ce" type="email" autocomplete="email">
  <label for="cd">Endereço (só livros impressos)</label><input id="cd" autocomplete="street-address">
@@ -219,9 +224,11 @@ textarea{width:100%;padding:10px;border-radius:8px;border:2px solid var(--mist);
  <p style="font-size:14px;opacity:.7;margin-bottom:0"><a href="#" id="fechar">Fechar</a></p>
 </dialog>
 
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="config.js"></script>
 <script>
 /* CONFIG: troque pelos dados reais */
-var API_URL = "https://script.google.com/macros/s/AKfycbx8hwNSsYJ3ljWPBN79e8aCi62ye855yyzq5Om1i1yp_il9M2yfpczmLVf9bxwQGG3T/exec"
+var API_URL = window.API_URL || "";  /* o endereço fica no arquivo config.js */
 /* Fotos de capa: coloque a URL em "img". Preços são exemplos. */
 var BOOKS=[
  {t:"As Aventuras na Casa da Vovó",s:"Volume 1",c:"infantil",p:"39,90",f:"102 páginas"},
@@ -282,15 +289,29 @@ document.getElementById("calc").onclick=function(){
 };
 
 var CART={};
-function add(id){CART[id]=(CART[id]||0)+1;var n=0;for(var k in CART)n+=CART[k];document.getElementById("qtd").textContent=n}
+function findBook(id){return BOOKS.filter(function(x){return x.id===id})[0]}
+function maxQty(b){if(b.f==="Ebook")return 1;if(typeof b.est==="number")return b.est;return 10}
+function cartCount(){var n=0;for(var k in CART)n+=CART[k];document.getElementById("qtd").textContent=n;return n}
+function toast(m){var t=document.getElementById("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove("on")},2800)}
+function resetFrete(){document.getElementById("fs").innerHTML="";document.getElementById("ft").textContent=""}
+function add(id){var b=findBook(id);if(!b)return;var mx=maxQty(b),cur=CART[id]||0;
+ if(mx<1){toast("Este livro está esgotado.");return}
+ if(cur>=mx){toast(b.f==="Ebook"?"Este ebook já está no carrinho (1 por compra).":"Só há "+mx+" unidade(s) em estoque e você já colocou "+cur+" no carrinho.");return}
+ CART[id]=cur+1;cartCount();toast("Adicionado ao carrinho")}
+function renderCart(){var ids=Object.keys(CART),tot=0,el=document.getElementById("resumo");
+ if(!ids.length){el.innerHTML="<li>Seu carrinho está vazio.</li>";document.getElementById("pagar").disabled=true;document.getElementById("limpar").hidden=true;return}
+ document.getElementById("pagar").disabled=false;document.getElementById("limpar").hidden=false;
+ el.innerHTML=ids.map(function(id){var b=findBook(id),q=CART[id],v=parseFloat(String(b.p).replace(",","."))*q;tot+=v;
+  var ctl=maxQty(b)>1?'<button class="qb" data-dec="'+esc(id)+'" aria-label="Diminuir quantidade">&minus;</button><span class="qn">'+q+'</span><button class="qb" data-inc="'+esc(id)+'" aria-label="Aumentar quantidade">+</button>':'<span class="qn">1</span>';
+  return '<li class="ci"><div class="ct"><b>'+esc(b.t)+'</b><small>'+money(v)+'</small></div><div class="cc">'+ctl+'<button class="rm" data-del="'+esc(id)+'">Remover</button></div></li>'}).join("")+'<li class="tot"><b>Total dos livros: '+money(tot)+'</b></li>'}
 function money(v){return "R$ "+v.toFixed(2).replace(".",",")}
 function post(d){return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(r){return r.json()})}
 function b64(f){return new Promise(function(ok){var r=new FileReader();r.onload=function(){ok(r.result.split(",")[1])};r.readAsDataURL(f)})}
-document.getElementById("carrinho").onclick=function(){
- var ids=Object.keys(CART);if(!ids.length){alert("Seu carrinho está vazio.");return}
- var tot=0,h=ids.map(function(id){var b=BOOKS.filter(function(x){return x.id===id})[0],v=parseFloat(String(b.p).replace(",","."))*CART[id];tot+=v;return "<li>"+CART[id]+"× "+esc(b.t)+" – "+money(v)+"</li>"}).join("");
- document.getElementById("resumo").innerHTML=h+"<li><b>Total: "+money(tot)+"</b></li>";
- document.getElementById("checkout").showModal()};
+document.getElementById("carrinho").onclick=function(){if(!cartCount()){toast("Seu carrinho está vazio.");return}renderCart();document.getElementById("checkout").showModal()};
+document.getElementById("resumo").addEventListener("click",function(e){var b=e.target,id=b.getAttribute("data-inc")||b.getAttribute("data-dec")||b.getAttribute("data-del");if(!id)return;
+ if(b.hasAttribute("data-inc"))add(id);else if(b.hasAttribute("data-dec")){CART[id]--;if(CART[id]<=0)delete CART[id]}else delete CART[id];
+ cartCount();resetFrete();renderCart()});
+document.getElementById("limpar").onclick=function(){CART={};cartCount();resetFrete();renderCart()};
 document.getElementById("fcheck").onclick=function(e){e.preventDefault();document.getElementById("checkout").close()};
 document.getElementById("pagar").onclick=function(){
  var f=function(i){return document.getElementById(i).value.trim()};
