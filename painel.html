@@ -12,8 +12,8 @@ td input[type=checkbox]{width:auto}.g{display:grid;grid-template-columns:repeat(
 <div id="lg"><h2>Acesso da editora</h2><input id="k" type="password" placeholder="Chave de administrador"><button id="en">Entrar</button></div>
 <main id="app" hidden></main>
 <script>
-var API_URL="";  /* cole a URL /exec do Apps Script */
-var REM=["Lamaveo Editora e Livraria","[Rua, número, bairro]","[Cidade/UF] · CEP [00000-000]","editora@lamaveo.com.br"];
+var API_URL="https://script.google.com/macros/s/AKfycbx8hwNSsYJ3ljWPBN79e8aCi62ye855yyzq5Om1i1yp_il9M2yfpczmLVf9bxwQGG3T/exec";  /* cole a URL /exec do Apps Script */
+var REM=["Lamaveo Editora e Livraria","[Rua Pecuária, 219, Setor Santa Genoveva]","[Goiânia/GO] · CEP [74670-030]","editora@lamaveo.com.br"];
 var D,K="",ST=["aguardando","pago","em produção","enviado","entregue","cancelado"];
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]})}
 function api(d){d.chave=K;return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(r){return r.json()})}
